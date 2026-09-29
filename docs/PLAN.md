@@ -4,11 +4,11 @@ This plan is to be established before any code is written, to establish clear go
 ## 🎯 Vision & Goals
 A server and dashboard for tracking GPS devices and responding to SOS signals. 
 
-This project is inspired by Garmin inReach. This service can be critical preparation for outdoorsman, explorers, and anyone who seeks to go into the untamed wild with a layer of protection from the tamed home. 
+This project is inspired by Garmin inReach. This service can be critical preparation for outdoorsmen, explorers, and anyone who seeks to go into the untamed wild with a layer of protection from the tamed home. 
 
 The idea is that explorers have devices which contain a GPS tracker, and some kind of SOS button. The device turns on, and it sends location data to a tracking service until the device turns off. In case of an emergency, the explorer can use the SOS button, which alerts the tracking service to an emergency. The tracking service can then call proper authorities to send assistance. 
 
-The tracking service stores the location data on a server, where it can easily be monitored from a dashboard. When an SOS signal is sent the dashboard alerts the user, who can then take proper action. 
+The tracking service stores the location data on a server, where it can easily be monitored from a dashboard. When an SOS signal is sent, the dashboard alerts the user, who can then take proper action. 
 
 ### Core Components 
 The project should consist of the following components: 
@@ -19,7 +19,7 @@ The project should consist of the following components:
 
 The project would need a number of GPS devices signaling to the receiver, but that is unrealistic. Instead a microservice, run by the backend will simulate these signals. 
 
-### Out of Scope and Practical Limitations
+### 🚫 Out of Scope and Practical Limitations
 * Actual functionality of the dashboard is limited. Responding to an emergency should be limited to pressing a "Resolve" button. 
 * Realistic GPS locations are of no concern. 
 * A realistic system would work over a long time span, and process tens of thousands of signals per hour. For demonstration purposes this system will process much fewer signals and over a shorter period of time. 
@@ -28,27 +28,53 @@ The project would need a number of GPS devices signaling to the receiver, but th
 ### ​System Architecture
 ![](images/SystemArchitectureFlowChart.png)
 [lucid chart link](https://lucid.app/lucidchart/fd844469-7cf5-42d1-a412-6386b9f16418/edit?beaconFlowId=BF915EC9F170A177&invitationId=inv_0cc85b4f-659d-45fd-9046-f98744155457&page=0_0#)
+### Backend Server
+* The backend framework will be .NET 8 and an ASP.NET Core Web API.
+* Real time web functionality will be done through SignalR. 
 #### Worker
-The worker simulates a number of explorers, using divices out in the world. Each explorer has a location, speed, battery life, SOS state, and flags to dicate behavior. The explorer will move around, while decreasing their battery life. There will be two things the explorer can do: 
+The worker is a hosted service running in the background of the app. It simulates a number of explorers, using divices out in the world. Each explorer has a location, speed, battery life, SOS state, and flags to dicate behavior. The explorer will move around, while decreasing their battery life. There will be two things the explorer can do: 
 * Deactivate their device, indicating the end of an adventure and no more need of service. 
 * Send an SOS, indicating the need for assistance. 
+Both of these actions are communicated via a HTTP webhook in the API. 
+#### API
+The API will use system threading to asynchronously handle incomming requests. 
 #### Signal Processing and SOS Evaluation
-Signal Processing checks for two situations: If an Emergency Incident needs to be created and if a device needs to be activated or deactivated. 
+When  signal is recieved it is first added to the TelemetryPings table, and the if the device is unknown, it is also added to the Devices table. Signal Processing checks for two situations: If an Emergency Incident needs to be created and if a device needs to be activated or deactivated. 
 
 When a device reports telemetry data, a device is set to active. This indicates that the device has been turned on, and the explorer is on their way. Devices need to be deactivated in order to indicate that the explorer no longer needs service. 
 
 Emergency Incidents can be created for two reasons. 
 * If a signal comes in reporting an SOS. This indicates that the device user has asked for help. If a signal comes in reporting an SOS, the system first checks if there is already an Emergency Incident in progress. If not it creates a new incident. It is important to note that if a signal comes in, not reporting an SOS, while an active Emergency Incident exists, the incident is not affected. Users cannot "undo" an SOS signal, in the same way they can't un-call 911 or un-pull a fire alarm. 
 * If an active device has not transmitted in 10 minutes. This indicates that the device has suddenly stopped working, and the explorer has been unable to report their safety. 
-#### Dashboard and Incident Resolution
-Incidents are only resolved via a button on the dashboard. 
+
+If an Incident is created, the proper entry is added to the database table and the UI is immediately updated. Note that incidents are only resolved via a button on the dashboard.
 ### Database
 Entity Relationship Diagram (ERD)
 ![](images/DatabaseSchema.png)
 [lucid chart link](https://lucid.app/lucidchart/fd844469-7cf5-42d1-a412-6386b9f16418/edit?beaconFlowId=BF915EC9F170A177&invitationId=inv_0cc85b4f-659d-45fd-9046-f98744155457&page=0_0#)
 * GUIDs will be replaced with VARCHAR to allow for simple, manual, data entry. 
+* The database will be made in PostgreSQL and managed with Entity Framework Core. 
 ### Frontend Dashboard
 Wireframe goes here
+* The frontend is written in React and uses TypeScript for type safety. 
+* State management and data fetching will be done with React Query. 
+Incidents are only resolved via a button on the dashboard. 
+
+#### Row 1: Header
+Nothing special planned here. 
+#### Row 2, Left: System Health and Metrics
+#### Row 2, Right: Selected Device Focus
+#### Row 3: Emergency Incidents
+#### Row 4: Recent Telemetry Live Stream
+#### Row 5: Simulator Control Panel
+### DevOps & Cloud Infrastructure
+* Terraform will be used to provision cloud resources.
+* Docker will be used to containerize the .NET backend and web server for local development and deployment. 
+* GitHub Actions will be used for builds, tests, and automated code quality checks.
+
+### Quality & Testing
+* xUnit & Moq will be used for Unit testing of .NET business logic and alert handlers.
+* React Testing Library will be used for Unit and UI component testing.
 
 ## 🗺️ Roadmap
 * Phase 0: Planning
@@ -97,12 +123,17 @@ Wireframe goes here
 * Phase 5: Testing, Documentation & Polish
   * **Goal:** Packaging for interview discussion.
   * Unit Tests:
-    * Add a few xUnit/NUnit tests covering the ingestion service logic and validation handlers.
+    * Add a few xUnit tests covering the ingestion service logic and validation handlers.
   * Comprehensive README.md:
     * Write a clear overview explaining:
-      * System Architecture diagram or ascii workflow.
       * Decisions made.
       * Instructions to run locally via dotnet run.
 
 ## ❓ Remaining Questions
 * AWS vs Azure? It shouldn't really matter, whichever is easiest, I guess. 
+
+## 📝 To Do
+* Finish Frontend Wireframe
+* Finish descibing wireframe
+* Correct colors on Architecture Chart
+* 
