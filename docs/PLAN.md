@@ -12,10 +12,10 @@ The tracking service stores the location data on a server, where it can easily b
 
 ### Core Components 
 The project should consist of the following components: 
-* A Backend Receiver and Processor: This service will recieve incomming satalite signals. It will feature message validation, and SOS processing. It should be able to handle a large amount of incomming signals without impeding other functionality. 
-* A Frontend Monitoring Dashboard: This React app will show the satilite signals on a convenient dashboard. In case of an emergency, it should provide response options. 
-* A Relational Database: This will record satilite signals, devices, and ongoing emergencies. 
-* Cloud platform hosting: The backend and database must be hosted, and operate on a cloud platform. This cloud platform should be configured using Tarraform. 
+* A Backend Receiver and Processor: This service will receive incoming satellite signals. It will feature message validation, and SOS processing. It should be able to handle a large amount of incoming signals without impeding other functionality. 
+* A Frontend Monitoring Dashboard: This React app will show the satellite signals on a convenient dashboard. In case of an emergency, it should provide response options. 
+* A Relational Database: This will record satellite signals, devices, and ongoing emergencies. 
+* Cloud platform hosting: The backend and database must be hosted, and operate on a cloud platform. This cloud platform should be configured using Tarraform.
 
 The project would need a number of GPS devices signaling to the receiver, but that is unrealistic. Instead a microservice, run by the backend will simulate these signals. 
 
@@ -32,19 +32,19 @@ The project would need a number of GPS devices signaling to the receiver, but th
 * The backend framework will be .NET 8 and an ASP.NET Core Web API.
 * Real time web functionality will be done through SignalR. 
 #### Worker
-The worker is a hosted service running in the background of the app. It simulates a number of explorers, using divices out in the world. Each explorer has a location, speed, battery life, SOS state, and flags to dicate behavior. The explorer will move around, while decreasing their battery life. There will be two things the explorer can do: 
+The worker is a hosted service running in the background of the app. It simulates a number of explorers, using devices out in the world. Each explorer has a location, speed, battery life, SOS state, and flags to dictate behavior. The explorer will move around, while decreasing their battery life. There will be two things the explorer can do: 
 * Deactivate their device, indicating the end of an adventure and no more need of service. 
 * Send an SOS, indicating the need for assistance. 
 Both of these actions are communicated via a HTTP webhook in the API. 
 #### API
-The API will use system threading to asynchronously handle incomming requests. 
+The API will use system threading to asynchronously handle incoming requests. 
 #### Signal Processing and SOS Evaluation
-When  signal is recieved it is first added to the TelemetryPings table, and the if the device is unknown, it is also added to the Devices table. Signal Processing checks for two situations: If an Emergency Incident needs to be created and if a device needs to be activated or deactivated. 
+When  signal is received it is first added to the TelemetryPings table, and if the device is unknown, it is also added to the Devices table. Signal Processing checks for two situations: If an Emergency Incident needs to be created and if a device needs to be activated or deactivated. 
 
 When a device reports telemetry data, a device is set to active. This indicates that the device has been turned on, and the explorer is on their way. Devices need to be deactivated in order to indicate that the explorer no longer needs service. 
 
 Emergency Incidents can be created for two reasons. 
-* If a signal comes in reporting an SOS. This indicates that the device user has asked for help. If a signal comes in reporting an SOS, the system first checks if there is already an Emergency Incident in progress. If not it creates a new incident. It is important to note that if a signal comes in, not reporting an SOS, while an active Emergency Incident exists, the incident is not affected. Users cannot "undo" an SOS signal, in the same way they can't un-call 911 or un-pull a fire alarm. 
+* If a signal comes in reporting an SOS. This indicates that the device user has asked for help. If a signal comes in reporting an SOS, the system first checks if there is already an Emergency Incident in progress. If not, it creates a new incident. It is important to note that if a signal comes in, not reporting an SOS, while an active Emergency Incident exists, the incident is not affected. Users cannot "undo" an SOS signal, in the same way they can't un-call 911 or un-pull a fire alarm. 
 * If an active device has not transmitted in 10 minutes. This indicates that the device has suddenly stopped working, and the explorer has been unable to report their safety. 
 
 If an Incident is created, the proper entry is added to the database table and the UI is immediately updated. Note that incidents are only resolved via a button on the dashboard.
@@ -128,12 +128,3 @@ Nothing special planned here.
     * Write a clear overview explaining:
       * Decisions made.
       * Instructions to run locally via dotnet run.
-
-## ❓ Remaining Questions
-* AWS vs Azure? It shouldn't really matter, whichever is easiest, I guess. 
-
-## 📝 To Do
-* Finish Frontend Wireframe
-* Finish descibing wireframe
-* Correct colors on Architecture Chart
-* 
