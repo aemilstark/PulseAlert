@@ -26,12 +26,12 @@ The project would need a number of GPS devices signaling to the receiver, but th
 
 ## 🛠️ Architecture & Tech Stack
 ### ​System Architecture
-![](images/SystemArchitectureFlowChart.png)
+![](images/DataFlowChart.png)
 [lucid chart link](https://lucid.app/lucidchart/fd844469-7cf5-42d1-a412-6386b9f16418/edit?beaconFlowId=BF915EC9F170A177&invitationId=inv_0cc85b4f-659d-45fd-9046-f98744155457&page=0_0#)
 ### Backend Server
 * The backend framework will be .NET 8 and an ASP.NET Core Web API.
 * Real time web functionality will be done through SignalR. 
-#### Worker
+#### Satellite Worker
 The worker is a hosted service running in the background of the app. It simulates a number of explorers, using devices out in the world. Each explorer has a location, speed, battery life, SOS state, and flags to dictate behavior. The explorer will move around, while decreasing their battery life. There will be two things the explorer can do: 
 * Deactivate their device, indicating the end of an adventure and no more need of service. 
 * Send an SOS, indicating the need for assistance. 
@@ -43,9 +43,7 @@ When  signal is received it is first added to the TelemetryPings table, and if t
 
 When a device reports telemetry data, a device is set to active. This indicates that the device has been turned on, and the explorer is on their way. Devices need to be deactivated in order to indicate that the explorer no longer needs service. 
 
-Emergency Incidents can be created for two reasons. 
-* If a signal comes in reporting an SOS. This indicates that the device user has asked for help. If a signal comes in reporting an SOS, the system first checks if there is already an Emergency Incident in progress. If not, it creates a new incident. It is important to note that if a signal comes in, not reporting an SOS, while an active Emergency Incident exists, the incident is not affected. Users cannot "undo" an SOS signal, in the same way they can't un-call 911 or un-pull a fire alarm. 
-* If an active device has not transmitted in 10 minutes. This indicates that the device has suddenly stopped working, and the explorer has been unable to report their safety. 
+If a signal comes in reporting an SOS. This indicates that the device user has asked for help. If a signal comes in reporting an SOS, the system first checks if there is already an Emergency Incident in progress. If not, it creates a new incident. It is important to note that if a signal comes in, not reporting an SOS, while an active Emergency Incident exists, the incident is not affected. Users cannot "undo" an SOS signal, in the same way they can't un-call 911 or un-pull a fire alarm. 
 
 If an Incident is created, the proper entry is added to the database table and the UI is immediately updated. Note that incidents are only resolved via a button on the dashboard.
 ### Database
@@ -55,7 +53,9 @@ Entity Relationship Diagram (ERD)
 * GUIDs will be replaced with VARCHAR to allow for simple, manual, data entry. 
 * The database will be made in PostgreSQL and managed with Entity Framework Core. 
 ### Frontend Dashboard
-Wireframe goes here
+Entity Relationship Diagram (ERD)
+![](images/FrontendWireframe.jpg)
+[lucid chart link](https://lucid.app/lucidchart/fd844469-7cf5-42d1-a412-6386b9f16418/edit?beaconFlowId=BF915EC9F170A177&invitationId=inv_0cc85b4f-659d-45fd-9046-f98744155457&page=0_0#)
 * The frontend is written in React and uses TypeScript for type safety. 
 * State management and data fetching will be done with React Query. 
 Incidents are only resolved via a button on the dashboard. 
@@ -128,3 +128,8 @@ Nothing special planned here.
     * Write a clear overview explaining:
       * Decisions made.
       * Instructions to run locally via dotnet run.
+* Phase 6: Additional features
+  * **Goal:** Implement stretch goals
+  * Front End Map
+  * Deadman's Switch
+  * More Impressive Explorer
