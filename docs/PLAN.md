@@ -12,9 +12,9 @@ The tracking service stores the location data on a server, where it can easily b
 
 ### Core Components 
 The project should consist of the following components: 
-* A Backend Receiver and Processor: This service will receive incoming satellite signals. It will feature message validation, and SOS processing. It should be able to handle a large amount of incoming signals without impeding other functionality. 
-* A Frontend Monitoring Dashboard: This React app will show the satellite signals on a convenient dashboard. In case of an emergency, it should provide response options. 
-* A Relational Database: This will record satellite signals, devices, and ongoing emergencies. 
+* A Backend Receiver and Processor: This service will receive incoming satellite-relayed messages. It will feature message validation, and SOS processing. It should be able to handle a large amount of incoming signals without impeding other functionality. 
+* A Frontend Monitoring Dashboard: This React app will show the satellite-relayed messages on a convenient dashboard. In case of an emergency, it should provide response options. 
+* A Relational Database: This will record satellite-relayed messages, devices, and ongoing emergencies. 
 * Cloud platform hosting: The backend and database must be hosted, and operate on a cloud platform. This cloud platform should be configured using Tarraform.
 
 The project would need a number of GPS devices signaling to the receiver, but that is unrealistic. Instead a microservice, run by the backend will simulate these signals. 
@@ -24,20 +24,25 @@ The project would need a number of GPS devices signaling to the receiver, but th
 * Realistic GPS locations are of no concern. 
 * A realistic system would work over a long time span, and process tens of thousands of signals per hour. For demonstration purposes this system will process much fewer signals and over a shorter period of time. 
 * The project will not attempt to interact with actual satellites. The project scope assumes that satellite messages are delivered to the server via a webhook. 
+* The project assumes that the technology supporting the app will be stable and functional. 
 
 ## 🛠️ Architecture & Tech Stack
 ### System Architecture
 ![](images/DataFlowChart.png)
+
 ### Backend Server
 * The backend framework will be .NET 10 and an ASP.NET Core Web API.
 * Real time web functionality will be done through SignalR. 
+
 #### Satellite Worker
 The worker is a hosted service running in the background of the app. It simulates a number of explorers, using devices out in the world. Each explorer has a location, speed, battery life, SOS state, and flags to dictate behavior. The explorer will move around, while decreasing their battery life. There will be two things the explorer can do: 
 * Deactivate their device, indicating the end of an adventure and no more need of service. 
 * Send an SOS, indicating the need for assistance. 
 Both of these actions are communicated via a HTTP webhook in the API. 
+
 #### API
 The API will use system threading to asynchronously handle incoming requests. 
+
 #### Signal Processing and SOS Evaluation
 When a signal is received it is first added to the TelemetryPings table, and if the device is unknown, it is also added to the Devices table. Signal Processing checks for two situations: If an Emergency Incident needs to be created and if a device needs to be activated or deactivated. 
 
@@ -45,13 +50,16 @@ When a device reports telemetry data, a device is set to active. This indicates 
 
 If a signal comes in reporting an SOS. This indicates that the device user has asked for help. If a signal comes in reporting an SOS, the system first checks if there is already an Emergency Incident in progress. If not, it creates a new incident. It is important to note that if a signal comes in, not reporting an SOS, while an active Emergency Incident exists, the incident is not affected. Users cannot "undo" an SOS signal, in the same way they can't un-call 911 or un-pull a fire alarm. 
 
-If an Incident is created, the proper entry is added to the database table and the UI is immediately updated. Note that incidents are only resolved via a button on the dashboard.
+If an Incident is created, the proper entry is added to the database table and the UI is immediately updated. Note that incidents are only resolved via a button on the dashboard. 
+
+Since signals arrive asynchronously, signal processing also has to be asychronous. Signal processing is done by a Telemetry Worker. When the worker needs to touch the database it enters a thread safe queue which organizes threads when accessing the database. 
+
 ### Database
 Entity Relationship Diagram (ERD)
 ![](images/DatabaseSchema.png)
 * The database will be made in PostgreSQL and managed with Entity Framework Core.
-#### Devices Table
 
+#### Devices Table
 | Column Name | Data Type | Constraints / Attributes | Description |
 | :--- | :--- | :--- | :--- |
 | **DeviceId** | Guid | Primary Key, Non-null | Unique internal identifier for the device. |
@@ -62,7 +70,6 @@ Entity Relationship Diagram (ERD)
 | **CreatedAtUtc** | DateTime | Non-null | UTC timestamp when the device was registered. |
 
 #### TelemetryPings Table
-
 | Column Name | Data Type | Constraints / Attributes | Description |
 | :--- | :--- | :--- | :--- |
 | **PingId** | Guid | Primary Key, Non-null | Unique identifier for the telemetry entry. |
@@ -77,7 +84,6 @@ Entity Relationship Diagram (ERD)
 | **ReceivedAtUtc** | DateTime | Non-null | UTC timestamp recorded when the server processed the request. |
 
 #### EmergencyIncidents Table
-
 | Column Name | Data Type | Constraints / Attributes | Description |
 | :--- | :--- | :--- | :--- |
 | **IncidentId** | Guid | Primary Key, Non-null | Unique identifier for the emergency ticket. |
@@ -87,11 +93,15 @@ Entity Relationship Diagram (ERD)
 | **Notes** | String | Text / Unlimited | Operator logs and dispatch notes recorded during response coordination. |
 | **OpenedAtUtc** | DateTime | Non-null | UTC timestamp when the emergency was registered. |
 | **ResolvedAtUtc** | DateTime | Nullable | UTC timestamp when the incident was marked resolved. | 
+
+* Should have a Postgres partial unique index allowing for only one non-resolved incident per DeviceId 
+
 ### Frontend Dashboard
 Entity Relationship Diagram (ERD)
 ![](images/FrontendWireframe.jpg)
 * The frontend is written in React and uses TypeScript for type safety. 
 * State management and data fetching will be done with React Query. 
+
 #### Header & Branding Bar
 The top bar running across the dashboard. Establishes application branding (PulseAlert) and displays global navigation or quick status indicators.
 
@@ -141,7 +151,7 @@ This panel also includes a "Resolve All Incidents" button, which resolves all cu
     * Create a clean layer structure: Core (domain models/interfaces), Infrastructure (EF Core/DB context), API (controllers/endpoints).
   * Design EF Core Data Model:
     * Device: Device ID, model, status.
-    * TelemetryPing: GPS coordinates (lat/long/altitude), battery level, timestamp, payload JSON.
+    * TelemetryPing: GPS coordinates (lat/long/altitude), battery level, timestamp.
     * EmergencyIncident: Status (Active, Resolved), timestamp.
   * Database Setup:
     * Configure EF Core migrations with PostgreSQL.
@@ -149,7 +159,6 @@ This panel also includes a "Resolve All Incidents" button, which resolves all cu
   * **Goal:** Build the engine that simulates and processes incoming satellite data.
   * Satellite Ingestion Endpoint:
     * Build a POST /api/telemetry controller endpoint that accepts incoming GPS pings.
-    * Add simple validation (checking for corrupted data or duplicate pings).
   * Channel / In-Memory Queue:
     * Use .NET System.Threading.Channels to handle incoming pings asynchronously without blocking HTTP requests.
   * Background Worker (IHostedService):
@@ -159,11 +168,14 @@ This panel also includes a "Resolve All Incidents" button, which resolves all cu
 * Phase 3: Simple Monitoring Endpoint / Dashboard
   * **Goal:** Provide visibility into system metrics.
   * API Telemetry Status Endpoint:
-    * GET /api/metrics: Returns total pings processed per minute, queue depth, and active SOS count.
+    * GET /api/dashboard: Returns total pings processed per minute, queue depth, and active SOS count.
   * Lightweight React / TypeScript Front End:
     * A 1-page dashboard using React and TypeScript displaying:
-      * Live metrics counters.
-      * A explorer 
+      * Live metrics counters 
+      * A detailed device view 
+      * A list of active emergencies 
+      * A live stream of incomming telemetry pings 
+      * A demo control panel
 * Phase 4: Infrastructure as Code (Terraform)
   * **Goal:** Use Terraform in order to manage a cloud deployment.
   * Create terraform/ Directory:
@@ -180,8 +192,11 @@ This panel also includes a "Resolve All Incidents" button, which resolves all cu
     * Write a clear overview explaining:
       * Decisions made.
       * Instructions to run locally via dotnet run.
-* Phase 6: Additional features
+* Phase 6: Leaving the Project Scope
   * **Goal:** Implement stretch goals
-  * Front End Map
-  * Deadman's Switch
-  * More Impressive Explorer
+  * Front End Map - A map on the device focus view to see where the device is.
+  * Deadman's Switch - A background process which creates an emergency if a device suddenly stops sending pings. 
+  * A More Impressive Explorer - Something with more meaningful locations and more interesting behaviors. 
+  * Crash Resistance and Recovery - Making the system more stable in case of platform instability. 
+  * Simple Validation - Checking for corrupted data or duplicate pings. 
+  * A more interesting incident resolution process 
