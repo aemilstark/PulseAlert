@@ -15,7 +15,7 @@ The project should consist of the following components:
 * A Backend Receiver and Processor: This service will receive incoming satellite-relayed messages. It will feature message validation, and SOS processing. It should be able to handle a large amount of incoming signals without impeding other functionality. 
 * A Frontend Monitoring Dashboard: This React app will show the satellite-relayed messages on a convenient dashboard. In case of an emergency, it should provide response options. 
 * A Relational Database: This will record satellite-relayed messages, devices, and ongoing emergencies. 
-* Cloud platform hosting: The backend and database must be hosted, and operate on a cloud platform. This cloud platform should be configured using Tarraform.
+* Cloud platform hosting: The backend and database must be hosted, and operate on a cloud platform. This cloud platform should be configured using Terraform.
 
 The project would need a number of GPS devices signaling to the receiver, but that is unrealistic. Instead a microservice, run by the backend will simulate these signals. 
 
@@ -25,6 +25,8 @@ The project would need a number of GPS devices signaling to the receiver, but th
 * A realistic system would work over a long time span, and process tens of thousands of signals per hour. For demonstration purposes this system will process much fewer signals and over a shorter period of time. 
 * The project will not attempt to interact with actual satellites. The project scope assumes that satellite messages are delivered to the server via a webhook. 
 * The project assumes that the technology supporting the app will be stable and functional. 
+* Pings waiting in the in-memory queue are lost if the server crashes. Durable queuing is a stretch goal (see Crash Resistance and Recovery in Phase 6).
+* Operator accounts and dashboard login are out of scope. Only the satellite webhook is protected, by a shared API key. 
 
 ## 🛠️ Architecture & Tech Stack
 ### System Architecture
@@ -33,6 +35,7 @@ The project would need a number of GPS devices signaling to the receiver, but th
 ### Backend Server
 * The backend framework will be .NET 10 and an ASP.NET Core Web API.
 * Real time web functionality will be done through SignalR. 
+* The React dashboard is built into static files and served by the API, so the whole app is one container with one URL.
 
 #### Satellite Worker
 The worker is a hosted service running in the background of the app. It simulates a number of explorers, using devices out in the world. Each explorer has a location, speed, battery life, SOS state, and flags to dictate behavior. The explorer will move around, while decreasing their battery life. There will be two things the explorer can do: 
@@ -40,19 +43,63 @@ The worker is a hosted service running in the background of the app. It simulate
 * Send an SOS, indicating the need for assistance. 
 Both of these actions are communicated via a HTTP webhook in the API. 
 
+Explorers are kept in memory. Like a real device, the worker only talks to the API over HTTP. The webhook base URL is configurable, so the worker works both locally and in the cloud.
+
 #### API
-The API will use system threading to asynchronously handle incoming requests. 
+Endpoints are written with `async`/`await`. ASP.NET Core handles concurrent requests. 
+
+##### Satellite Webhook
+`POST /api/telemetry` receives pings from devices. Requests must include a shared secret in an `X-Api-Key` header. Devices identify themselves by IMEI.
+
+```json
+{
+  "imei": "300234063918230",
+  "modelName": "inReach Mini 2",
+  "firmwareVersion": "2.1.0",
+  "latitude": 35.779600,
+  "longitude": -78.630000,
+  "altitudeMeters": 120.5,
+  "batteryPercentage": 84,
+  "isSosActive": false,
+  "powerOff": false,
+  "recordedAtUtc": "2026-10-17T13:42:10Z"
+}
+```
+
+Responses:
+* `202 Accepted` - the ping is valid and has been queued.
+* `400 Bad Request` - the ping failed validation (e.g. latitude out of range).
+* `401 Unauthorized` - missing or wrong API key.
+* `503 Service Unavailable` - the queue is full. The sender should retry later.
+
+##### Dashboard Endpoints
+| Method | Route | Purpose |
+| :--- | :--- | :--- |
+| GET | `/api/dashboard` | Metrics: queue depth, ingest rate (pings/min), active SOS count. |
+| GET | `/api/telemetry/recent?count=25` | Most recent pings, for the initial load of the telemetry stream. |
+| GET | `/api/devices/{imei}` | Device details and latest ping, for the Focus View. |
+| GET | `/api/incidents?status=Active` | Active incidents, for the emergency banner. |
+| POST | `/api/incidents/{id}/resolve` | Resolve one incident. |
+| POST | `/api/incidents/resolve-all` | Resolve all active incidents. |
+| POST | `/api/simulator/explorers` | Create or reset a simulated explorer. |
+
+##### SignalR Hub
+`/hubs/telemetry` pushes `PingReceived`, `IncidentOpened` and `IncidentResolved` events to the dashboard as they happen.
 
 #### Signal Processing and SOS Evaluation
-When a signal is received it is first added to the TelemetryPings table, and if the device is unknown, it is also added to the Devices table. Signal Processing checks for two situations: If an Emergency Incident needs to be created and if a device needs to be activated or deactivated. 
+When a signal is received it is first added to the TelemetryPings table, and if the device's IMEI is unknown, it is also added to the Devices table. Signal Processing checks for two situations: If an Emergency Incident needs to be created and if a device needs to be activated or deactivated. 
 
-When a device reports telemetry data, a device is set to active. This indicates that the device has been turned on, and the explorer is on their way. Devices need to be deactivated in order to indicate that the explorer no longer needs service. 
+When a device reports telemetry data, a device is set to active. This indicates that the device has been turned on, and the explorer is on their way. This includes a Deactivated device that sends a new ping: turning the device back on starts a new adventure. Devices need to be deactivated in order to indicate that the explorer no longer needs service. 
 
-If a signal comes in reporting an SOS. This indicates that the device user has asked for help. If a signal comes in reporting an SOS, the system first checks if there is already an Emergency Incident in progress. If not, it creates a new incident. It is important to note that if a signal comes in, not reporting an SOS, while an active Emergency Incident exists, the incident is not affected. Users cannot "undo" an SOS signal, in the same way they can't un-call 911 or un-pull a fire alarm. 
+A ping with `PowerOff` set deactivates the device. If that device has an active Emergency Incident, the incident stays open until an operator resolves it. A device shutting down mid-emergency (for example, a dead battery) is the worst case, not a reason to close the incident. 
+
+A signal reporting an SOS indicates that the device user has asked for help. If a signal comes in reporting an SOS, the system first checks if there is already an Emergency Incident in progress. If not, it creates a new incident. If an incident is already open, the new SOS ping is stored but the incident is not changed. It is important to note that if a signal comes in, not reporting an SOS, while an active Emergency Incident exists, the incident is not affected. Users cannot "undo" an SOS signal, in the same way they can't un-call 911 or un-pull a fire alarm. 
 
 If an Incident is created, the proper entry is added to the database table and the UI is immediately updated. Note that incidents are only resolved via a button on the dashboard. 
 
-Since signals arrive asynchronously, signal processing also has to be asychronous. Signal processing is done by a Telemetry Worker. When the worker needs to touch the database it enters a thread safe queue which organizes threads when accessing the database. 
+Since signals arrive asynchronously, signal processing also has to be asynchronous. The webhook validates the pings and writes them to a bounded in-memory queue (`System.Threading.Channels`, capacity around 10,000), then returns immediately. If the queue is full, the webhook returns `503`.
+
+Signal processing is done by a Telemetry Worker, a single background consumer that reads pings off the queue in batches. For each batch it opens a fresh `DbContext`, saves the pings, updates device status, evaluates SOS, and then publishes SignalR events. A single consumer is a deliberate choice: `DbContext` is not thread-safe, and processing pings in order removes race conditions such as two SOS pings both creating an incident. The partial unique index on EmergencyIncidents is a second line of defense. 
 
 ### Database
 Entity Relationship Diagram (ERD)
@@ -95,12 +142,15 @@ Entity Relationship Diagram (ERD)
 | **ResolvedAtUtc** | DateTime | Nullable | UTC timestamp when the incident was marked resolved. | 
 
 * Should have a Postgres partial unique index allowing for only one non-resolved incident per DeviceId 
+* TelemetryPings should have an index on (DeviceId, RecordedAtUtc DESC), so that the latest ping for a device can be found quickly as the table grows. 
+* Status columns are stored as strings and mapped to C# enums using EF Core value conversions. 
 
 ### Frontend Dashboard
-Entity Relationship Diagram (ERD)
+Wireframe
 ![](images/FrontendWireframe.jpg)
 * The frontend is written in React and uses TypeScript for type safety. 
 * State management and data fetching will be done with React Query. 
+* Live updates are pushed over SignalR: new pings, opened incidents and resolved incidents. React Query handles initial loads, device lookups, and polls the metrics endpoint every ~2 seconds. 
 
 #### Header & Branding Bar
 The top bar running across the dashboard. Establishes application branding (PulseAlert) and displays global navigation or quick status indicators.
@@ -110,7 +160,7 @@ Displays metrics of real-time system performance. It includes:
 * Queue Depth: Shows how many incoming pings are currently waiting in the .NET background queue.
 * Ingest Rate: Measures the throughput (e.g., pings per minute) being processed by the backend.
 * SOS Status: Shows the current total count of active emergency alerts requiring operator intervention.
-* API Latency: Displays the round-trip response time (in milliseconds) of HTTP requests to track backend responsiveness.
+* API Latency: Displays the round-trip response time (in milliseconds) of HTTP requests to track backend responsiveness. This is measured by the browser as a rolling average, not reported by the server.
 
 #### Selected Device Focus View (Top-Right)
 A dedicated inspector panel for deep telemetry inspection of a specific device. At the top is a text box and button for setting the panel to display a specific Device ID. Alternatively the panel can be set by clicking any row of the Telemetry Stream or the Active Emergency Incidents Banner. The panel shows model, IMEI number, exact coordinates, last signal timestamp, battery life, and current status. It also includes a button to Resolve an active alert, if applicable.
@@ -130,12 +180,14 @@ This panel also includes a "Resolve All Incidents" button, which resolves all cu
 
 ### DevOps & Cloud Infrastructure
 * Terraform will be used to provision cloud resources.
-* Hosting will be done on Azure. 
-* Docker will be used to containerize the .NET backend and web server for local development and deployment. 
+* Hosting will be done on Azure: the API container runs on Azure Container Apps, and the database on Azure Database for PostgreSQL (Flexible Server). Container Apps supports WebSockets for SignalR and can scale to zero to keep demo costs low. 
+* Docker will be used to containerize the .NET backend, which also serves the built React frontend. 
+* Docker Compose will be used to start a local PostgreSQL database (and later the API) for local development. 
 * GitHub Actions will be used for builds, tests, and automated code quality checks.
 
 ### Quality & Testing
 * xUnit & Moq will be used for Unit testing of .NET business logic and alert handlers.
+* Testcontainers will be used for integration tests against a real PostgreSQL database, to verify migrations and the partial unique index. 
 * React Testing Library will be used for Unit and UI component testing.
 
 ## 🗺️ Roadmap
@@ -154,40 +206,52 @@ This panel also includes a "Resolve All Incidents" button, which resolves all cu
     * TelemetryPing: GPS coordinates (lat/long/altitude), battery level, timestamp.
     * EmergencyIncident: Status (Active, Resolved), timestamp.
   * Database Setup:
+    * Add a docker-compose.yml that starts a local PostgreSQL.
     * Configure EF Core migrations with PostgreSQL.
+  * Continuous Integration:
+    * Add a GitHub Actions workflow that builds the solution and runs tests on every push and pull request.
 * Phase 2: Ingestion Pipeline & Background Processing
   * **Goal:** Build the engine that simulates and processes incoming satellite data.
   * Satellite Ingestion Endpoint:
     * Build a POST /api/telemetry controller endpoint that accepts incoming GPS pings.
+    * Validate the payload and require the X-Api-Key header.
   * Channel / In-Memory Queue:
-    * Use .NET System.Threading.Channels to handle incoming pings asynchronously without blocking HTTP requests.
+    * Use a bounded .NET System.Threading.Channels queue to handle incoming pings asynchronously without blocking HTTP requests. Return 503 when it is full.
   * Background Worker (IHostedService):
-    * Write a background worker service that reads pings off the channel and writes them to the database in bulk using EF Core.
+    * Write a single-consumer background worker that reads pings off the channel and writes them to the database in batches using EF Core.
   * Emergency Trigger Logic:
-    * If an incoming ping has SOS_Active = true, auto-create or update an EmergencyIncident record.
+    * If an incoming ping has IsSosActive = true and the device has no active incident, create an EmergencyIncident record.
+    * Apply device activation and deactivation rules.
+  * Satellite Worker:
+    * Build the simulated explorers that send pings to the webhook.
+  * Tests:
+    * xUnit tests for the SOS and activation rules, written alongside the logic.
+    * Testcontainers integration tests for migrations and the partial unique index.
 * Phase 3: Simple Monitoring Endpoint / Dashboard
   * **Goal:** Provide visibility into system metrics.
   * API Telemetry Status Endpoint:
     * GET /api/dashboard: Returns total pings processed per minute, queue depth, and active SOS count.
+    * The remaining dashboard endpoints and the SignalR hub listed in the API section.
   * Lightweight React / TypeScript Front End:
     * A 1-page dashboard using React and TypeScript displaying:
       * Live metrics counters 
       * A detailed device view 
       * A list of active emergencies 
-      * A live stream of incomming telemetry pings 
+      * A live stream of incoming telemetry pings 
       * A demo control panel
 * Phase 4: Infrastructure as Code (Terraform)
   * **Goal:** Use Terraform in order to manage a cloud deployment.
   * Create terraform/ Directory:
     * Write a modular main.tf file that provisions:
-      * An Azure PostgreSQL instance.
-      * An Azure App Runner hosting the .NET API.
+      * An Azure Database for PostgreSQL (Flexible Server) instance.
+      * An Azure Container App hosting the .NET API and frontend.
     * Local Validation:
       * Ensure terraform plan runs successfully against local environment variables.
 * Phase 5: Testing, Documentation & Polish
   * **Goal:** Packaging for interview discussion.
   * Unit Tests:
-    * Add a few xUnit tests covering the ingestion service logic and validation handlers.
+    * Fill remaining gaps in xUnit tests covering the ingestion service logic and validation handlers.
+    * Add React Testing Library tests for key dashboard components.
   * Comprehensive README.md:
     * Write a clear overview explaining:
       * Decisions made.
