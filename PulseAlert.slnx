@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PulseAlert.Api/PulseAlert.Api.csproj" />
+    <Project Path="src/PulseAlert.Core/PulseAlert.Core.csproj" />
+    <Project Path="src/PulseAlert.Infrastructure/PulseAlert.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PulseAlert.UnitTests/PulseAlert.UnitTests.csproj" />
+  </Folder>
+</Solution>
