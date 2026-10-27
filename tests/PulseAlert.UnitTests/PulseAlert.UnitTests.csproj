@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\PulseAlert.Core\PulseAlert.Core.csproj" />
+    <ProjectReference Include="..\..\src\PulseAlert.Infrastructure\PulseAlert.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
