@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Cancel an older run when new commits are pushed to the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore PulseAlert.slnx
+
+      - name: Check formatting
+        run: dotnet format PulseAlert.slnx --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build PulseAlert.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test PulseAlert.slnx --configuration Release --no-build --logger "console;verbosity=normal"
