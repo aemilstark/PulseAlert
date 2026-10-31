@@ -1,4 +1,5 @@
 using PulseAlert.Api.Filters;
+using PulseAlert.Api.Workers;
 using PulseAlert.Core.Telemetry;
 using PulseAlert.Infrastructure;
 using PulseAlert.Infrastructure.Data;
@@ -12,6 +13,7 @@ builder.Services.AddOptions<TelemetryOptions>()
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSingleton<ApiKeyFilter>();
+builder.Services.AddHostedService<TelemetryWorker>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

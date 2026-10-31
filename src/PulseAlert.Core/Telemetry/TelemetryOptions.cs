@@ -14,4 +14,8 @@ public sealed class TelemetryOptions
     /// <summary>How many pings the queue holds before the webhook returns 503.</summary>
     [Range(1, int.MaxValue)]
     public int QueueCapacity { get; set; } = 10_000;
+
+    /// <summary>The most pings the Telemetry Worker saves in one batch.</summary>
+    [Range(1, 10_000)]
+    public int MaxBatchSize { get; set; } = 500;
 }

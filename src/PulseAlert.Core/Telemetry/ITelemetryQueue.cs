@@ -5,4 +5,9 @@ public interface ITelemetryQueue
 {
     /// <summary>Adds a ping without waiting. Returns false when the queue is full.</summary>
     bool TryEnqueue(IncomingPing ping);
+
+    /// <summary>
+    /// Waits until at least one ping is queued, then takes up to <paramref name="maxBatchSize"/> pings in arrival order.
+    /// </summary>
+    ValueTask<IReadOnlyList<IncomingPing>> ReadBatchAsync(int maxBatchSize, CancellationToken cancellationToken);
 }
