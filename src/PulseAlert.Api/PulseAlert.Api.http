@@ -1,5 +1,25 @@
 @PulseAlert.Api_HostAddress = http://localhost:5229
+@ApiKey = local-dev-key
 
 GET {{PulseAlert.Api_HostAddress}}/health
+
+###
+
+POST {{PulseAlert.Api_HostAddress}}/api/telemetry
+X-Api-Key: {{ApiKey}}
+Content-Type: application/json
+
+{
+  "imei": "300234063918230",
+  "modelName": "inReach Mini 2",
+  "firmwareVersion": "2.1.0",
+  "latitude": 35.779600,
+  "longitude": -78.630000,
+  "altitudeMeters": 120.5,
+  "batteryPercentage": 84,
+  "isSosActive": false,
+  "powerOff": false,
+  "recordedAtUtc": "2026-10-17T13:42:10Z"
+}
 
 ###

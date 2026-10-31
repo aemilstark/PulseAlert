@@ -49,7 +49,7 @@ Explorers are kept in memory. Like a real device, the worker only talks to the A
 Endpoints are written with `async`/`await`. ASP.NET Core handles concurrent requests. 
 
 ##### Satellite Webhook
-`POST /api/telemetry` receives pings from devices. Requests must include a shared secret in an `X-Api-Key` header. Devices identify themselves by IMEI.
+`POST /api/telemetry` receives pings from devices. Requests must include a shared secret in an `X-Api-Key` header, configured as `Telemetry:ApiKey`; the API refuses to start without it. Devices identify themselves by IMEI.
 
 ```json
 {

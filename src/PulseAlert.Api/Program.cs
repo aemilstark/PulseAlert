@@ -1,9 +1,17 @@
+using PulseAlert.Api.Filters;
+using PulseAlert.Core.Telemetry;
 using PulseAlert.Infrastructure;
 using PulseAlert.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddOptions<TelemetryOptions>()
+    .Bind(builder.Configuration.GetSection(TelemetryOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<ApiKeyFilter>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
