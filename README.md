@@ -25,3 +25,5 @@ dotnet run --project src/PulseAlert.Api
 ```
 
 The API listens on http://localhost:5229. `GET /health` reports whether the API can reach the database.
+
+Devices send pings to `POST /api/telemetry` with an `X-Api-Key` header. In Development the key is `local-dev-key` (set in `appsettings.Development.json`); elsewhere set `Telemetry__ApiKey`. `src/PulseAlert.Api/PulseAlert.Api.http` has a sample request.

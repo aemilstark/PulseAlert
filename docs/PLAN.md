@@ -54,7 +54,7 @@ Endpoints are written with `async`/`await`. ASP.NET Core handles concurrent requ
 ```json
 {
   "imei": "300234063918230",
-  "modelName": "inReach Mini 2",
+  "modelName": "Explorer Alpha",
   "firmwareVersion": "2.1.0",
   "latitude": 35.779600,
   "longitude": -78.630000,
@@ -111,7 +111,7 @@ Entity Relationship Diagram (ERD)
 | :--- | :--- | :--- | :--- |
 | **DeviceId** | Guid | Primary Key, Non-null | Unique internal identifier for the device. |
 | **IMEI** | String | Unique Index, Max length: 15 | International Mobile Equipment Identity used for satellite network routing. |
-| **ModelName** | String | Max length: 100 | Hardware model name (e.g., inReach Mini 2). |
+| **ModelName** | String | Max length: 100 | Hardware model name (e.g., Explorer Alpha). |
 | **FirmwareVersion** | String | Max length: 50 | Active software version on the physical unit. |
 | **Status** | String | Max length: 20 | Operating status (Active, Deactivated). |
 | **CreatedAtUtc** | DateTime | Non-null | UTC timestamp when the device was registered. |
