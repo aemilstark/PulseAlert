@@ -11,7 +11,7 @@ Content-Type: application/json
 
 {
   "imei": "300234063918230",
-  "modelName": "inReach Mini 2",
+  "modelName": "Explorer Alpha",
   "firmwareVersion": "2.1.0",
   "latitude": 35.779600,
   "longitude": -78.630000,

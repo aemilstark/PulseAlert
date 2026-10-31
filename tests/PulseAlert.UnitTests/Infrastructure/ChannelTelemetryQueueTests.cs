@@ -7,7 +7,7 @@ namespace PulseAlert.UnitTests.Infrastructure;
 public class ChannelTelemetryQueueTests
 {
     private static readonly IncomingPing Ping = new(
-        "300234063918230", "inReach Mini 2", "2.1.0", 35.7796m, -78.63m, 120.5, 84,
+        "300234063918230", "Explorer Alpha", "2.1.0", 35.7796m, -78.63m, 120.5, 84,
         IsSosActive: false, PowerOff: false, new DateTime(2026, 10, 17, 13, 42, 10, DateTimeKind.Utc));
 
     [Fact]

@@ -9,7 +9,7 @@ public class TelemetryPingRequestValidationTests
     internal static TelemetryPingRequest ValidRequest() => new()
     {
         Imei = "300234063918230",
-        ModelName = "inReach Mini 2",
+        ModelName = "Explorer Alpha",
         FirmwareVersion = "2.1.0",
         Latitude = 35.779600m,
         Longitude = -78.630000m,
