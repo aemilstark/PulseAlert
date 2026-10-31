@@ -8,7 +8,7 @@ using PulseAlert.Core.Telemetry;
 namespace PulseAlert.Api.Filters;
 
 /// <summary>Rejects requests whose X-Api-Key header does not match the configured key.</summary>
-/// <remarks>Authorization filters run before model binding, so a bad key gets 401 even when the body is invalid.</remarks>
+/// <remarks>ASP.NET Core runs authorization filters run before model binding, so a bad key gets 401 even when the body is invalid.</remarks>
 public sealed class ApiKeyFilter(IOptions<TelemetryOptions> options) : IAuthorizationFilter
 {
     public const string HeaderName = "X-Api-Key";
