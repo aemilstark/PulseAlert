@@ -19,4 +19,18 @@ public sealed class ChannelTelemetryQueue : ITelemetryQueue
     }
 
     public bool TryEnqueue(IncomingPing ping) => _channel.Writer.TryWrite(ping);
+
+    public async ValueTask<IReadOnlyList<IncomingPing>> ReadBatchAsync(int maxBatchSize, CancellationToken cancellationToken)
+    {
+        var reader = _channel.Reader;
+        await reader.WaitToReadAsync(cancellationToken);
+
+        var batch = new List<IncomingPing>();
+        while (batch.Count < maxBatchSize && reader.TryRead(out var ping))
+        {
+            batch.Add(ping);
+        }
+
+        return batch;
+    }
 }

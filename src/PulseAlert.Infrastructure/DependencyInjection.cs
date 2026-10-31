@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using PulseAlert.Core.Telemetry;
 using PulseAlert.Infrastructure.Data;
 using PulseAlert.Infrastructure.Telemetry;
@@ -20,6 +21,8 @@ public static class DependencyInjection
 
         // Reads TelemetryOptions, which the API binds and validates.
         services.AddSingleton<ITelemetryQueue, ChannelTelemetryQueue>();
+        services.AddScoped<ITelemetryBatchProcessor, TelemetryBatchProcessor>();
+        services.TryAddSingleton(TimeProvider.System);
 
         return services;
     }
